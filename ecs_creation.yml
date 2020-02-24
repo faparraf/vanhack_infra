@@ -1,0 +1,131 @@
+- name: Setup example networking (VPC, Security-Groups and Subnets)
+  hosts: localhost
+  vars:
+    pre_vpc_id: vpc-fdf4c787
+    subnet_1: subnet-0335d265
+    subnet_2: subnet-3be45276
+  tasks:
+    - name: Create Security group for App traffic
+      ec2_group:
+        name: ECS-Appraffic
+        description: Security group for App traffic
+        vpc_id: "{{ pre_vpc_id }}"
+        region: us-east-1
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: 0.0.0.0/0
+          - proto: tcp
+            from_port: 8080
+            to_port: 8080
+            cidr_ip: 0.0.0.0/0
+        state: present
+      register: my_sec_group
+
+    - name: Create SSH key
+      ec2_key:
+        name: 'custom_ssh_key'
+        wait: yes
+        state: present
+        region: us-east-1
+        key_material: "{{ lookup('file', '/infra/key.pub') }}"
+
+- name: Setup EC2 cluster inside the VPC
+  hosts: localhost
+  vars:
+    ecs_cluster_name: 'vanhack_dev'
+    ecs_ssh_key_name: 'custom_ssh_key'
+    ecs_security_groups:
+      - "{{ my_sec_group.group_id }}"
+    ecs_vpc_subnets:
+      - subnet-0335d265
+      - subnet-3be45276
+    ecs_asg_min_size: 1
+    ecs_asg_max_size: 2
+    ecs_asg_desired_capacity: 1
+    ecs_ec2_region: us-east-1
+    ecs_instance_type: t2.micro
+    ecs_ami_id: ami-098616968d61e549e
+    resources_name: vanhack-back-dev
+    app_name: vanhack_back_app
+  roles:
+    - mediapeers.ecs-cluster
+  tasks:
+
+    # Setup services on your now running cluster, using the Ansible modules for ECS, like this:
+
+    - name: Create task definition for a service running in docker container(s)
+      ecs_taskdefinition:
+        family: "{{ app_name }}"
+        containers:
+          - name: vanhack-app
+            cpu: 0.5
+            memory: 256
+            image: 947477774388.dkr.ecr.us-east-1.amazonaws.com/vanhack_back_app
+            portMappings:
+                - containerPort: 8080
+                  hostPort: 8080
+            logConfiguration:
+                logDriver: awslogs
+                options:
+                    awslogs-group: /ecs/vanhack_back_app_dev
+                    awslogs-region: us-east-1
+                    awslogs-stream-prefix: ecs
+            environment:
+                - name: "PGURLS"
+                  value: "vanhack-db.c9o8aimuazls.us-east-1.rds.amazonaws.com"
+                - name: "PGDB"
+                  value: "vanhack_db"
+                - name: "PGPASS"
+                  value: "lPIldslRW"
+                - name: "PGUSER"
+                  value: "vanhack_app"
+            # needs more params here, see docs
+        region: "{{ ecs_ec2_region }}"
+        state: present
+      register: my_task_definition
+    
+    - name: Create target group
+      elb_target_group:
+        name: "{{ resources_name }}"
+        protocol: http
+        port: 8080
+        vpc_id: vpc-fdf4c787
+        health_check_path: /
+        successful_response_codes: "200"
+        state: present
+      register: target_group
+
+    - name: Create ALB
+      elb_application_lb:
+        scheme: internet-facing
+        name: vanhack-apps
+        security_groups:
+            - ECS-Appraffic
+        subnets:
+            - subnet-0335d265
+            - subnet-3be45276
+        listeners:
+          - Protocol: HTTP
+            Port: 8080
+            DefaultActions:
+              - Type: forward
+                TargetGroupName: "{{ target_group.target_group_name }}"
+        state: present
+      register: alb
+
+    - name: Create service running on the ECS cluster
+      ecs_service:
+        name: "{{ resources_name }}"
+        cluster: "{{ ecs_cluster_name }}"
+        task_definition: "{{ my_task_definition.taskdefinition.taskDefinitionArn }}"
+        region: "{{ ecs_ec2_region }}"
+        launch_type: EC2
+        load_balancers: 
+          - targetGroupArn: "{{ target_group.target_group_arn }}"
+            containerName: vanhack-app
+            containerPort: 8080
+        desired_count: 1
+        state: present
+        

@@ -1,0 +1,19 @@
+- name: Create s3 bucket
+  hosts: localhost
+  tasks:
+    - aws_s3:
+        bucket: vanhack.frontendapp
+        mode: create
+      register: s3bucket
+
+    - cloudfront_distribution:
+        state: present
+        caller_reference: unique test distribution id
+        origins:
+            - id: 'main_target'
+              domain_name: vanhack.frontendapp.s3.amazonaws.com
+              s3_origin_access_identity_enabled: yes
+        default_root_object: index.html
+        enabled: true
+        comment: CloudFrontDist
+    
