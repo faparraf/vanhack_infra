@@ -1,0 +1,21 @@
+language: node_js
+node_js:
+  - node
+cache:
+  npm: true
+  directories:
+    - node_modules
+script:
+  - npm install
+  - ng build
+  - ls -la dist/angular-httpclient-app
+deploy:
+  provider: s3
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
+  bucket: $BUCKET
+  skip_cleanup: true
+  local_dir: dist/angular-httpclient-app
+branches:
+  only:
+    - master

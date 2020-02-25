@@ -1,0 +1,41 @@
+<div class="container custom-container-2">
+
+  <!-- Show it when there is no favorite -->
+  <div class="no-data text-center" *ngIf="Favorite.length == 0">
+    <p>There is no favorites added yet!</p>
+    <button class="btn btn-outline-primary" routerLink="/create-favorite">Add Favorite</button>
+  </div>
+
+  <!-- Employees list table, it hides when there is no favorite -->
+  <div *ngIf="Favorite.length !== 0">
+    <h3 class="mb-3 text-center">Favorites List</h3>
+
+    <div class="col-md-12">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th scope="col">Id</th>
+            <th scope="col">Name</th>
+            <th scope="col">Color</th>
+            <th scope="col">Animal</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let favorite of Favorite">
+            <td>{{favorite.Id}}</td>
+            <td>{{favorite.Name}}</td>
+            <td>{{favorite.Color}}</td>
+            <td>{{favorite.Animal}}</td>
+            <td>
+              <span class="edit" routerLink="/favorite-edit/{{favorite.Id}}">Edit</span>
+              <span class="delete" (click)="deleteFavorite(favorite.Id)">Delete</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>

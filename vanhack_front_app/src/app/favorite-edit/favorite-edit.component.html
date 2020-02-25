@@ -1,0 +1,27 @@
+<div class="container custom-container">
+  <div class="col-md-12">
+    
+    <h3 class="mb-3 text-center">Update Favorite</h3>
+
+    <div class="form-group">
+      <input type="text" [(ngModel)]="favoriteData.Name" class="form-control" placeholder="Name">
+    </div>
+
+    <div class="form-group">
+      <input type="text" [(ngModel)]="favoriteData.Color" class="form-control" placeholder="Color">
+    </div>
+
+    <div class="form-group">
+      <select [(ngModel)]="favoriteData.Animal" class="form-control">
+        <option value="" disabled>Choose your animal</option>
+        <option value="dogs">Dogs</option>
+        <option value="cats">Cats</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <button class="btn btn-success btn-lg btn-block" (click)="updateFavorite()">Update favorite</button>
+    </div>
+    
+  </div>
+</div>
